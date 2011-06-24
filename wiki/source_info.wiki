@@ -1,4 +1,4 @@
-This code is [https://github.com/nmaupu/Apache-Cluster-Manager/tree hosted on Github] and can be checked out using the following command :
+ACM code is [https://github.com/nmaupu/Apache-Cluster-Manager/tree hosted on Github] and can be checked out using the following command :
 
 {{{
 git clone git://github.com/nmaupu/Apache-Cluster-Manager.git
