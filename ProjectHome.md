@@ -1,0 +1,130 @@
+When you have multiple web frontends with mod\_proxy\_balancer, it can be difficult to have a global view of all information given by the balancer manager page.
+ACM provide an easy way to view all information of all your frontends from one place. It is also possible to set values on all nodes with only one command.
+
+# Features #
+
+  * Supports multiple clusters by a simple configuration file
+  * Visualization of all information given on balancer manager page
+  * filters to view or set only some elements (regular expressions)
+  * set lbset, load factor, route, route redir or status
+  * supports virtual host names
+
+# Presentation #
+
+`mod_proxy_balancer` is mostly used inside a virtual host with a server name. A server can contains multiple virtual hosts and you can have any number of servers. All of them constitute a cluster.
+Of course, you can configure any number of clusters !
+
+# How to use it ? #
+
+## Configure your apaches to serve a load balancer manager page ##
+```
+<Location /balancer-manager>
+  SetHandler balancer-manager
+    
+  Order Allow,Deny
+  Allow from 127.0.0.1
+</Location>
+```
+
+## Write a configuration file to manage your clusters ##
+
+```
+clusters=cluster_prod, cluster_preprod
+
+[cluster_prod]
+  name=cluster_prod
+  servers=srv1_prod, srv2_prod
+
+[cluster_preprod]
+  name=cluster_preprod
+  servers=srv1_preprod, srv2_preprod
+
+[srv1_prod]
+  ip=127.0.0.1
+  port=80
+  burl=balancer-manager
+  vhosts=myvhost,local.test,
+[srv2_prod]
+  ip=127.0.0.1
+  port=81
+  burl=balancer-manager
+  vhosts=myvhost,local.test,
+
+## No vhost defined - default to ''
+## no burl defined - default to balancer-manager
+[srv1_preprod]
+  ip=127.0.0.1
+  port=82
+[srv2_preprod]
+  ip=127.0.0.1
+  port=83
+
+[myvhost]
+  name=localhost
+  burl=balancer-manager
+[local.test]
+  name=local.test
+  burl=balancer-manager
+
+```
+
+## Use ACM to display cluster information using optional filters ##
+
+```
+./acm -c sample.cfg -i -b 'example' -u 'cluster_prod' -v 'localhost'
+
+Cluster (2 servers): name=cluster_prod
+Server (2 vhosts) [OK]: ip=127.0.0.1, port=80
+vhost: (2 lbs): name=localhost, balancerUrlPath=balancer-manager
+Load balancer (3 workers): name=examples, StickySession=JSESSIONID|jsessionid, Timeout=0, FailoverAttempts=2, Method=byrequests
+  Worker: Worker_URL=http://192.168.0.1:8080/examples, Route=jvm000, RouteRedir=, Factor=1, Set=0, Status=Ok, Elected=0, To=0, From=0
+  Worker: Worker_URL=http://192.168.0.1:8180/examples, Route=jvm100, RouteRedir=, Factor=1, Set=0, Status=Ok, Elected=0, To=0, From=0
+  Worker: Worker_URL=http://192.168.0.1:8280/examples, Route=jvm200, RouteRedir=, Factor=1, Set=0, Status=Ok, Elected=0, To=0, From=0
+Server (2 vhosts) [KO]: ip=127.0.0.1, port=81
+vhost: (0 lbs): name=localhost, balancerUrlPath=balancer-manager
+```
+
+## Set one or more values to all nodes ##
+
+Example : on all nodes corresponding to `cluster_prod`, virtual host `localhost`, set `lbset` to `10` on worker which route value contains `jvm000` :
+
+```
+./acm -c sample.cfg -s -b 'example' -u 'cluster_prod' -v 'localhost' -r 'jvm000' --ls=10
+[127.0.0.1:80 - localhost] Applying values {'lf': None, 'dw': None, 'wr': None, 'rr': None, 'ls': 10}
+
+```
+
+
+# Command line help #
+```
+./acm --help
+Usage: acm [options]
+
+Options:
+  -h, --help            show this help message and exit
+  -c CONF, --conf=CONF  Specify configuration file
+
+  Command options:
+    -i, --info          Display clusters information
+    -s, --set           Set one or more vars on workers (do not forget to
+                        apply selection filters)
+
+  Setter options:
+    --lf=LF             Set load factor
+    --ls=LS             Set lbset
+    --wr=WR             Set route
+    --rr=RR             Set route redirect
+    --dw=DW             Set worker status (Enable|Disable)
+
+  Selection options (regular expression are possible):
+    -b LB_FILTER, --balancer-name=LB_FILTER
+                        Filter by balancer name
+    -r ROUTE_FILTER, --route=ROUTE_FILTER
+                        Filter by route
+    -w WORKER_FILTER, --worker=WORKER_FILTER
+                        Filter by worker URL
+    -v VHOST_FILTER, --vhost=VHOST_FILTER
+                        Filter by vhost name
+    -u CLUSTER_FILTER, --cluster=CLUSTER_FILTER
+                        Filter by cluster name
+```
